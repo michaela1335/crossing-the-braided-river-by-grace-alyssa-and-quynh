@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarapirohe: Braided River Survival (Ukiyo-e Japanese Edition)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Shippori+Mincho:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Traditional Japanese Washi Paper, Indigo & Vermilion Ukiyo-e Aesthetics */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f4ebd9;
+            font-family: 'Zen Kaku Gothic New', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        .font-display {
+            font-family: 'Shippori Mincho', serif;
+        }
+
+        /* Washi Paper & Lacquer Woodblock UI Panels */
+        .nature-glass {
+            background: rgba(250, 243, 228, 0.92);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid #2b2118;
+            box-shadow: 0 10px 28px rgba(28, 25, 23, 0.28), inset 0 0 0 3px rgba(185, 28, 28, 0.18);
+            color: #1c1917;
+        }
+
+        .nature-card {
+            background: linear-gradient(160deg, rgba(255, 251, 242, 0.96), rgba(242, 231, 209, 0.94));
+            border: 2px solid #443326;
+            box-shadow: 0 6px 18px rgba(28, 25, 23, 0.16);
+            color: #1c1917;
+        }
+
+        /* Custom Progress Bar for Hold Actions (Collect Q / Nest E) */
+        .action-ring {
+            transition: stroke-dashoffset 0.05s linear;
+        }
+
+        /* Vermilion & Gold Hanko Seal Glow */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 14px rgba(185, 28, 28, 0.45), 0 4px 0 #7f1d1d; }
+            50% { box-shadow: 0 0 24px rgba(217, 119, 6, 0.65), 0 4px 0 #991b1b; }
+        }
+
+        .glow-blue {
+            animation: pulseGlow 2.4s infinite;
+        }
+
+        /* Virtual Joystick Styling (Bamboo & Lacquer) */
+        #joystick-zone {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(250, 243, 228, 0.68);
+            border: 2.5px solid #2b2118;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 6px 16px rgba(28, 25, 23, 0.22);
+        }
+
+        #joystick-knob {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b);
+            border: 2px solid #fef3c7;
+            box-shadow: 0 4px 10px rgba(127, 29, 29, 0.45);
+            top: 33px;
+            left: 33px;
+            pointer-events: none;
+        }
+
+        /* Action Button Press Feedback */
+        .tactile-btn {
+            transition: transform 0.1s ease, background-color 0.15s ease;
+        }
+        .tactile-btn:active, .tactile-btn.active-press {
+            transform: scale(0.92);
+        }
+
+        /* Japanese-style crimson death screen styling */
+        .jp-death-bg {
+            background: radial-gradient(circle at center, #7f1d1d 0%, #450a0a 60%, #1a0303 100%);
+            box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.9);
+        }
+
+        .jp-brush-title {
+            font-family: 'Cinzel Decorative', serif;
+            text-shadow: 0 0 28px rgba(248, 113, 113, 0.85), 0 6px 0 #2b0404;
+            letter-spacing: 0.22em;
+            animation: jpDeathReveal 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        @keyframes jpDeathReveal {
+            0% { opacity: 0; transform: scale(1.25); letter-spacing: 0.45em; }
+            100% { opacity: 1; transform: scale(1); letter-spacing: 0.22em; }
+        }
+    </style>
+</head>
+<body class="text-stone-900">
+
+    <!-- Main Fullscreen Game Canvas -->
+    <canvas id="gameCanvas" class="block w-full h-full"></canvas>
+
+    <!-- ===================================================================== -->
+    <!-- TOP HUD (Health Bar in Top Right, Stage & Egg Counter in Top Left)    -->
+    <!-- ===================================================================== -->
+    <div id="hud-overlay" class="hidden fixed top-0 left-0 w-full p-3 sm:p-5 flex justify-between items-start pointer-events-none z-20">
+        <!-- Top Left: Stage, Carried Eggs & Audio Toggle -->
+        <div class="flex flex-col gap-2 pointer-events-auto">
+            <div class="nature-glass rounded-xl px-4 py-2.5 flex items-center gap-4">
+                <div>
+                    <div class="text-[11px] uppercase tracking-widest text-red-800 font-bold">Braided River Scroll</div>
+                    <div class="text-lg sm:text-xl font-display font-extrabold text-stone-900 flex items-center gap-2">
+                        <span>Chapter <span id="hud-stage">1</span>/5</span>
+                        <span class="text-xs font-sans font-bold px-2.5 py-0.5 rounded bg-amber-100 border border-amber-700/50 text-amber-900" id="hud-difficulty">Calm Current</span>
+                    </div>
+                </div>
+                <div class="h-8 w-[1.5px] bg-stone-400"></div>
+                <!-- Egg Status -->
+                <div class="flex items-center gap-2.5">
+                    <div class="relative w-9 h-9 rounded-lg bg-amber-100 border-2 border-stone-800 flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5 text-amber-700" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.5 2 5 8.5 5 14C5 18.4 8.1 22 12 22C15.9 22 19 18.4 19 14C19 8.5 15.5 2 12 2Z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-amber-900 font-bold">Carrying / Saved</div>
+                        <div class="text-sm sm:text-base font-bold text-stone-900">
+                            <span id="hud-carrying" class="text-red-700">0</span> Carrying &bull; <span id="hud-saved" class="text-emerald-800">0</span>/<span id="hud-total-eggs">3</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Sound Toggle -->
+                <button id="btn-audio" onclick="toggleAudio()" title="Toggle River & Bird Sounds" class="ml-1 p-2 rounded-lg bg-amber-100/80 hover:bg-amber-200 text-stone-800 border border-stone-700 transition">
+                    <svg id="icon-sound-on" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                    </svg>
+                    <svg id="icon-sound-off" class="w-5 h-5 hidden text-red-700" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Interactive River Map Legend / Clickable Hint -->
+            <div class="hidden md:flex items-center gap-2 text-xs font-semibold text-stone-800 bg-amber-50/90 backdrop-blur px-3.5 py-1.5 rounded-lg border border-stone-700 shadow-sm">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-700 animate-ping"></span>
+                <span>Guidance: Click anywhere on the river scroll to fly there, or use <b>WASD</b>!</span>
+            </div>
+        </div>
+
+        <!-- Top Right: 100 HP Health Bar -->
+        <div class="nature-glass rounded-xl px-4 py-2.5 flex flex-col items-end min-w-[175px] sm:min-w-[220px]">
+            <div class="flex items-center justify-between w-full mb-1.5">
+                <span class="text-xs font-bold uppercase tracking-wider text-red-800">Tarapirohe Vitality</span>
+                <span id="hud-hp-text" class="text-xs sm:text-sm font-extrabold text-emerald-800">100 / 100 HP</span>
+            </div>
+            <!-- Continuous Health Bar -->
+            <div class="w-full h-3.5 bg-stone-300 rounded overflow-hidden border border-stone-800 p-0.5">
+                <div id="hud-health-bar" class="h-full rounded-sm bg-gradient-to-r from-emerald-700 via-teal-600 to-sky-700 transition-all duration-300" style="width: 100%;"></div>
+            </div>
+            <div class="text-[11px] font-semibold text-stone-700 mt-1 flex justify-between w-full">
+                <span>Stance: <b id="hud-flight-state" class="text-sky-900">Flying</b></span>
+                <span>Evaded: <b id="hud-dodged" class="text-emerald-800">0</b></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contextual Action Prompt Banner (Appears when near Egg or Finishing Island) -->
+    <div id="context-prompt" class="hidden fixed top-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <div class="nature-glass px-5 py-2.5 rounded-lg border-2 border-red-800 flex items-center gap-3 shadow-xl">
+            <span id="context-prompt-icon" class="text-xl">🥚</span>
+            <span id="context-prompt-text" class="text-sm sm:text-base font-bold text-stone-900">Hold [Q] or [Collect] to pick up egg</span>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- BOTTOM CONTROLS (Desktop Key Guide + Mobile/iPad Joystick & Buttons)  -->
+    <!-- ===================================================================== -->
+    <div id="controls-overlay" class="hidden fixed bottom-4 left-0 w-full px-4 sm:px-8 flex justify-between items-end pointer-events-none z-20">
+        <!-- Left Side: Virtual Joystick for iPad / iPhone / Touch -->
+        <div class="pointer-events-auto flex flex-col items-center gap-1.5">
+            <div id="joystick-zone">
+                <div id="joystick-knob"></div>
+            </div>
+            <span class="text-[11px] font-bold text-stone-800 bg-amber-50/90 px-3 py-0.5 rounded border border-stone-700 shadow-sm">Move (WASD / Stick / Click)</span>
+        </div>
+
+        <!-- Center Desktop Quick Reference -->
+        <div class="hidden lg:flex nature-glass rounded-xl px-5 py-2.5 gap-6 text-xs font-semibold text-stone-800 mb-2">
+            <div class="flex items-center gap-2"><kbd class="px-2 py-1 bg-amber-100 rounded border border-stone-700 font-bold text-stone-900">W A S D</kbd> <span>Fly / Move</span></div>
+            <div class="flex items-center gap-2"><kbd class="px-2 py-1 bg-amber-100 rounded border border-stone-700 font-bold text-amber-900">Hold Q</kbd> <span>Collect Egg</span></div>
+            <div class="flex items-center gap-2"><kbd class="px-2 py-1 bg-amber-100 rounded border border-stone-700 font-bold text-red-800">Space</kbd> <span>Land at Shrine</span></div>
+            <div class="flex items-center gap-2"><kbd class="px-2 py-1 bg-amber-100 rounded border border-stone-700 font-bold text-emerald-900">Hold E</kbd> <span>Place in Nest</span></div>
+        </div>
+
+        <!-- Right Side: Interactive Touch & Mouse Action Buttons (Collect Q, Land Space, Nest E) -->
+        <div class="pointer-events-auto flex items-end gap-3 sm:gap-4">
+            <!-- Hold Q: Collect Egg Button -->
+            <button id="btn-action-q" class="tactile-btn relative w-16 h-16 sm:w-20 sm:h-20 rounded-full nature-glass border-2 border-amber-800 flex flex-col items-center justify-center text-amber-900 shadow-lg">
+                <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 80 80">
+                    <circle id="ring-q" cx="40" cy="40" r="36" fill="none" stroke="#b45309" stroke-width="6" stroke-dasharray="226" stroke-dashoffset="226" stroke-linecap="round"/>
+                </svg>
+                <span class="text-lg sm:text-xl font-display font-extrabold leading-none">Q</span>
+                <span class="text-[10px] sm:text-xs font-bold mt-0.5">Collect</span>
+            </button>
+
+            <!-- Space: Land on Finishing Island Button -->
+            <button id="btn-action-space" class="tactile-btn relative w-16 h-16 sm:w-20 sm:h-20 rounded-full nature-glass border-2 border-red-800 flex flex-col items-center justify-center text-red-800 shadow-lg">
+                <span class="text-sm sm:text-base font-display font-extrabold leading-none">LAND</span>
+                <span class="text-[10px] sm:text-xs font-bold mt-0.5 text-stone-700">[Space]</span>
+            </button>
+
+            <!-- Hold E: Put Eggs in Nest Button -->
+            <button id="btn-action-e" class="tactile-btn relative w-16 h-16 sm:w-20 sm:h-20 rounded-full nature-glass border-2 border-emerald-800 flex flex-col items-center justify-center text-emerald-900 shadow-lg">
+                <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 80 80">
+                    <circle id="ring-e" cx="40" cy="40" r="36" fill="none" stroke="#065f46" stroke-width="6" stroke-dasharray="226" stroke-dashoffset="226" stroke-linecap="round"/>
+                </svg>
+                <span class="text-lg sm:text-xl font-display font-extrabold leading-none">E</span>
+                <span class="text-[10px] sm:text-xs font-bold mt-0.5">Nest</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 1: THE HOOK (Title, Ecological Facts & Launch)                 -->
+    <!-- ===================================================================== -->
+    <div id="screen-hook" class="fixed inset-0 z-30 flex items-center justify-center p-4 bg-stone-950/65 backdrop-blur-sm overflow-y-auto">
+        <div class="nature-glass max-w-4xl w-full rounded-2xl p-6 sm:p-10 my-auto relative">
+            <!-- Traditional Hanko Corner Seal -->
+            <div class="hidden sm:flex absolute top-5 right-6 w-10 h-10 border-2 border-red-800 bg-red-800 text-amber-50 font-display font-bold text-[10px] items-center justify-center rotate-3 shadow">
+                RIVER
+            </div>
+            <div class="flex flex-col md:flex-row gap-8 items-center">
+                <!-- Left Column: Visual Emblem & Hook Story -->
+                <div class="flex-1 text-center md:text-left">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded bg-red-900/10 border border-red-800 text-red-900 text-xs font-bold uppercase tracking-widest mb-3">
+                        <span>⛩️ Aotearoa Braided River Scroll</span>
+                    </div>
+                    <h1 class="font-display text-3xl sm:text-5xl font-extrabold text-stone-900 tracking-tight leading-tight">
+                        TARAPIROHE
+                        <span class="block text-lg sm:text-2xl font-display font-bold text-red-800 mt-1">Chronicle of the Braided River</span>
+                    </h1>
+                    <p class="text-stone-700 font-medium text-sm sm:text-base mt-4 leading-relaxed">
+                        Across New Zealand’s braided rivers, fewer than <b>10,000 Tarapirohe</b> survive. Bare river shingle leaves their speckled eggs exposed to introduced predators—feral cats, stoats, hedgehogs, and gulls—while lupins, gorse, and dry channels threaten their sanctuary islands.
+                    </p>
+
+                    <!-- Controls Summary Pill -->
+                    <div class="mt-5 p-4 rounded-xl bg-amber-100/70 border border-stone-700 text-xs text-stone-800 space-y-1.5 text-left font-medium">
+                        <div class="font-bold text-red-900 uppercase tracking-wider text-[11px] mb-1">Scroll Controls:</div>
+                        <div>&bull; <b>Move:</b> WASD keys, Virtual Joystick, or Click on the river scroll</div>
+                        <div>&bull; <b>Collect Eggs:</b> Hold <b>Q</b> (or Collect button) over bare river stones</div>
+                        <div>&bull; <b>Finish Crossing:</b> Press <b>Space</b> (or Land button) at the Torii Sanctuary Island, then hold <b>E</b> to secure eggs in the nest!</div>
+                    </div>
+
+                    <div class="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
+                        <button onclick="startNewGame()" class="glow-blue px-8 py-4 rounded-xl bg-gradient-to-r from-red-800 via-red-700 to-amber-800 hover:from-red-900 hover:to-amber-900 text-amber-50 font-display font-bold text-base sm:text-lg tracking-wider border border-stone-900 shadow-xl transition transform hover:-translate-y-0.5 cursor-pointer">
+                            BEGIN RIVER JOURNEY
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Column: Ecological Field Notes (All 6 Facts) -->
+                <div class="w-full md:w-[340px] nature-card rounded-xl p-5 space-y-3">
+                    <div class="flex items-center justify-between border-b border-stone-400 pb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-red-800">📜 River Ecology Scroll</span>
+                        <span class="text-xs font-bold text-stone-700">5 Chapters</span>
+                    </div>
+                    <ul class="space-y-2.5 text-xs font-medium text-stone-700 leading-snug">
+                        <li class="flex gap-2.5">
+                            <span class="text-red-800 font-bold">I.</span>
+                            <span>Only <b>5,000–10,000 Tarapirohe</b> are left in the world.</span>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="text-amber-800 font-bold">II.</span>
+                            <span>They lay eggs right on <b>bare river stones</b>, making them easy to find and eat.</span>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="text-red-800 font-bold">III.</span>
+                            <span><b>One feral cat</b> can wipe out almost an entire nesting colony in one night.</span>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="text-sky-900 font-bold">IV.</span>
+                            <span>Predators like <b>stoats</b> are strong swimmers that cross river channels.</span>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="text-emerald-800 font-bold">V.</span>
+                            <span><b>Lupin and gorse</b> overgrow bare gravel, hiding predators near nests.</span>
+                        </li>
+                        <li class="flex gap-2.5">
+                            <span class="text-stone-800 font-bold">VI.</span>
+                            <span><b>Dams & irrigation</b> dry up channels, letting predators walk to islands.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- INTER-ROUND LOADING SCREEN ("Did You Know?" Facts Between Stages)     -->
+    <!-- ===================================================================== -->
+    <div id="screen-loading" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-md">
+        <div class="nature-glass max-w-xl w-full rounded-2xl p-8 text-center">
+            <div class="inline-block px-4 py-1 rounded bg-red-900/10 border border-red-800 text-red-900 text-xs font-bold uppercase tracking-widest mb-3">
+                Chapter <span id="loading-stage-num">1</span> &bull; Did You Know?
+            </div>
+
+            <!-- Woodblock Ink Emblem -->
+            <div class="my-4 flex justify-center">
+                <div class="w-20 h-20 rounded-full bg-amber-100 border-2 border-stone-800 flex items-center justify-center shadow-lg">
+                    <svg class="w-12 h-12 text-stone-900" viewBox="0 0 64 64" fill="none">
+                        <circle cx="32" cy="32" r="24" fill="#b91c1c" opacity="0.2"/>
+                        <path d="M8 34C18 24 28 24 32 30C36 24 46 24 56 34C45 30 37 32 32 38C27 32 19 30 8 34Z" fill="#faf3e4" stroke="#1c1917" stroke-width="2.2"/>
+                        <circle cx="32" cy="24" r="4.5" fill="#1c1917"/>
+                        <path d="M32 21L35 16L32 18L29 16L32 21Z" fill="#d97706"/>
+                    </svg>
+                </div>
+            </div>
+
+            <blockquote id="loading-fact-text" class="font-display text-lg sm:text-2xl font-bold text-stone-900 leading-relaxed my-4 px-2">
+                “There are only 5,000 - 10,000 Tarapirohe left.”
+            </blockquote>
+
+            <p id="loading-stage-desc" class="text-xs sm:text-sm font-semibold text-stone-700 mb-6">
+                Cross the indigo braided channels toward the Torii Sanctuary Island.
+            </p>
+
+            <!-- Loading Progress Bar -->
+            <div class="w-full h-3.5 bg-stone-300 rounded overflow-hidden border border-stone-800 mb-5 p-0.5">
+                <div id="loading-bar-fill" class="h-full rounded-sm bg-gradient-to-r from-red-800 via-amber-600 to-stone-800 transition-all duration-100" style="width: 0%;"></div>
+            </div>
+
+            <button id="btn-skip-loading" onclick="beginStageNow()" class="px-6 py-2.5 rounded-xl bg-red-800 hover:bg-red-900 text-amber-50 text-sm font-display font-bold border border-stone-900 shadow-md transition cursor-pointer">
+                Enter Chapter <span id="loading-btn-stage">1</span> &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- JAPANESE-STYLE CRIMSON DEATH SCREEN ("YOU DIED")                      -->
+    <!-- ===================================================================== -->
+    <div id="screen-death" class="hidden fixed inset-0 z-40 flex flex-col items-center justify-center p-6 jp-death-bg text-center overflow-hidden">
+        <!-- Decorative Traditional Japanese Double Frame & Corner Ornaments -->
+        <div class="relative max-w-2xl w-full py-12 px-6 border-y-2 border-red-400/50 flex flex-col items-center">
+            <!-- Top Hanko Stamp Emblem -->
+            <div class="w-12 h-12 mb-5 border-2 border-red-300/80 bg-red-950/80 flex items-center justify-center rotate-3 shadow-lg">
+                <span class="text-red-200 font-serif font-bold text-xs tracking-widest">FALLEN</span>
+            </div>
+
+            <!-- Horizontal Brush Stroke Slash Behind Text -->
+            <div class="w-4/5 h-[2px] bg-gradient-to-r from-transparent via-red-400/70 to-transparent mb-4"></div>
+
+            <h2 class="jp-brush-title text-4xl sm:text-6xl md:text-7xl font-black text-red-100 uppercase">
+                YOU DIED
+            </h2>
+
+            <div class="w-4/5 h-[2px] bg-gradient-to-r from-transparent via-red-400/70 to-transparent mt-4"></div>
+
+            <p class="mt-5 text-xs sm:text-sm uppercase tracking-[0.35em] text-red-200/80 font-semibold">
+                The Braided River Claimed Another Guardian
+            </p>
+
+            <button onclick="proceedFromDeathScreen()" class="mt-8 px-7 py-2.5 border border-red-300/60 bg-red-950/70 hover:bg-red-900/90 text-red-100 text-xs uppercase tracking-[0.25em] font-bold transition cursor-pointer">
+                Continue &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- PRE-RESULTS BLACK SCREEN (Typewriter Reflection Message)              -->
+    <!-- ===================================================================== -->
+    <div id="screen-typewriter" class="hidden fixed inset-0 z-40 flex flex-col items-center justify-center p-6 sm:p-12 bg-black text-center">
+        <div class="max-w-3xl w-full">
+            <p id="typewriter-text" class="text-xl sm:text-3xl md:text-4xl font-medium text-white leading-relaxed tracking-wide min-h-[120px]"></p>
+            <button id="btn-continue-results" onclick="finishTypewriterToImpact()" class="hidden mt-10 px-7 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold border border-white/25 transition cursor-pointer">
+                View Results &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 3: THE IMPACT (End Screen with 3 Requested Summary Boxes)      -->
+    <!-- ===================================================================== -->
+    <div id="screen-impact" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-md overflow-y-auto">
+        <div class="nature-glass max-w-5xl w-full rounded-2xl p-6 sm:p-10 my-auto">
+            <div class="text-center mb-6">
+                <span id="impact-badge" class="inline-block px-4 py-1 rounded bg-emerald-900/15 border border-emerald-800 text-emerald-900 text-xs font-bold uppercase tracking-widest">
+                    Sanctuary Torii Reached
+                </span>
+                <h2 class="font-display text-3xl sm:text-4xl font-extrabold text-stone-900 mt-2 tracking-wide">THE IMPACT</h2>
+            </div>
+
+            <!-- 3-Column Layout Exactly Matching User Specification -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-stretch">
+               
+                <!-- FAR LEFT BOX: Eggs Captured & Saved + Eggs Missed -->
+                <div class="nature-card rounded-xl p-6 flex flex-col justify-between text-center border-t-4 border-t-amber-700">
+                    <div>
+                        <div class="w-12 h-12 mx-auto rounded-lg bg-amber-100 border-2 border-stone-800 flex items-center justify-center text-2xl mb-3">
+                            🥚
+                        </div>
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-amber-900">Nesting Conservation</h3>
+                        <div class="mt-4 space-y-3">
+                            <div class="bg-amber-50/90 rounded-lg p-3 border border-stone-600">
+                                <div class="text-3xl font-display font-extrabold text-emerald-800" id="end-eggs-saved">0</div>
+                                <div class="text-xs font-bold text-stone-700 mt-0.5">Eggs Captured &amp; Saved</div>
+                            </div>
+                            <div class="bg-red-50/90 rounded-lg p-3 border border-stone-600">
+                                <div class="text-2xl font-display font-extrabold text-red-800" id="end-eggs-missed">0</div>
+                                <div class="text-xs font-bold text-stone-700 mt-0.5">Eggs Missed</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-[11px] font-medium text-stone-600 mt-4">Every protected egg helps rebuild the 5,000–10,000 remaining Tarapirohe population.</p>
+                </div>
+
+                <!-- MIDDLE BOX: XP Gained & Victory / Status Text Underneath -->
+                <div class="nature-card rounded-xl p-6 flex flex-col justify-between text-center border-t-4 border-t-red-800 shadow-xl transform md:-translate-y-2">
+                    <div>
+                        <div class="w-14 h-14 mx-auto rounded-lg bg-red-100 border-2 border-stone-800 flex items-center justify-center text-3xl mb-3">
+                            ⛩️
+                        </div>
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-red-900">Guardian Honor</h3>
+                        <div class="my-5 bg-amber-100/80 rounded-lg p-5 border border-stone-700">
+                            <div class="text-xs font-bold uppercase tracking-widest text-stone-700">Total XP Gained</div>
+                            <div class="text-4xl sm:text-5xl font-display font-extrabold text-stone-900 mt-1" id="end-xp">0 XP</div>
+                        </div>
+                        <div id="end-victory-text" class="font-display text-lg sm:text-xl font-extrabold text-emerald-800 tracking-wide">
+                            YOU BEAT THE GAME!
+                        </div>
+                        <p id="end-sub-message" class="text-xs font-medium text-stone-700 mt-2 leading-relaxed">
+                            You successfully guided the Tarapirohe across all 5 braided river chapters and protected the next generation.
+                        </p>
+                    </div>
+                    <button onclick="startNewGame()" class="mt-6 w-full py-3.5 rounded-xl bg-gradient-to-r from-red-800 to-amber-800 hover:from-red-900 hover:to-amber-900 text-amber-50 font-display font-bold text-sm uppercase tracking-wider border border-stone-900 shadow-lg transition cursor-pointer">
+                        Begin Again
+                    </button>
+                </div>
+
+                <!-- FAR RIGHT BOX: Enemies Dodged & Damage Taken -->
+                <div class="nature-card rounded-xl p-6 flex flex-col justify-between text-center border-t-4 border-t-sky-800">
+                    <div>
+                        <div class="w-12 h-12 mx-auto rounded-lg bg-sky-100 border-2 border-stone-800 flex items-center justify-center text-2xl mb-3">
+                            🛡️
+                        </div>
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-sky-900">Predator Evasion</h3>
+                        <div class="mt-4 space-y-3">
+                            <div class="bg-sky-50/90 rounded-lg p-3 border border-stone-600">
+                                <div class="text-3xl font-display font-extrabold text-sky-900" id="end-enemies-dodged">0</div>
+                                <div class="text-xs font-bold text-stone-700 mt-0.5">Enemies Dodged</div>
+                            </div>
+                            <div class="bg-amber-50/90 rounded-lg p-3 border border-stone-600">
+                                <div class="text-2xl font-display font-extrabold text-amber-800" id="end-damage-taken">0</div>
+                                <div class="text-xs font-bold text-stone-700 mt-0.5">Damage Taken</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-[11px] font-medium text-stone-600 mt-4">Feral cats, swimming stoats, hedgehogs, and gulls patrol drying shingle channels.</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * TARAPIROHE: BRAIDED RIVER SURVIVAL (UKIYO-E JAPANESE WOODBLOCK EDITION)
+         * Traditional Japanese aesthetic with English text, progressive eggs (3, 4, 5, 6, 7),
+         * line-of-sight predator vision cones, 100 HP health, and 5 damage per hit.
+         */
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // =========================================================================
+        // 1. AUDIO SYNTHESIS ENGINE (Tone.js - Flowing Water & Birds Chirping)
+        // =========================================================================
+        let audioInitialized = false;
+        let audioMuted = false;
+        let riverNoise, riverFilter, birdLoop, sfxSynth;
+
+        async function initAudio() {
+            if (audioInitialized) return;
+            try {
+                await Tone.start();
+
+                // Flowing braided river ambient sound (filtered pink/brown noise)
+                riverFilter = new Tone.AutoFilter({
+                    frequency: 0.18,
+                    baseFrequency: 280,
+                    octaves: 2.2
+                }).toDestination();
+                riverFilter.start();
+
+                riverNoise = new Tone.Noise("pink").connect(riverFilter);
+                riverNoise.volume.value = -22;
+                riverNoise.start();
+
+                // Bird chirping & sound effects synth
+                sfxSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.02, decay: 0.15, sustain: 0.05, release: 0.3 }
+                }).toDestination();
+                sfxSynth.volume.value = -12;
+
+                // Periodic native Tarapirohe / river bird chirps
+                birdLoop = new Tone.Loop((time) => {
+                    if (audioMuted) return;
+                    const notes = ["E6", "G6", "A6", "B6", "D7"];
+                    const n1 = notes[Math.floor(Math.random() * notes.length)];
+                    const n2 = notes[Math.floor(Math.random() * notes.length)];
+                    sfxSynth.triggerAttackRelease(n1, "32n", time);
+                    if (Math.random() > 0.35) {
+                        sfxSynth.triggerAttackRelease(n2, "32n", time + 0.11);
+                    }
+                }, "3.5s").start(0);
+
+                Tone.Transport.start();
+                audioInitialized = true;
+            } catch (e) {
+                console.warn("Audio initialization awaiting user gesture:", e);
+            }
+        }
+
+        function playSfx(type) {
+            if (!audioInitialized || audioMuted || !sfxSynth) return;
+            const now = Tone.now();
+            if (type === 'egg') {
+                sfxSynth.triggerAttackRelease(["C5", "E5", "G5"], "16n", now);
+            } else if (type === 'land') {
+                sfxSynth.triggerAttackRelease(["D4", "A4"], "8n", now);
+            } else if (type === 'nest') {
+                sfxSynth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "8n", now);
+            } else if (type === 'hit') {
+                sfxSynth.triggerAttackRelease(["F2", "Ab2"], "8n", now);
+            } else if (type === 'dodge') {
+                sfxSynth.triggerAttackRelease("B5", "64n", now);
+            }
+        }
+
+        function toggleAudio() {
+            audioMuted = !audioMuted;
+            document.getElementById('icon-sound-on').classList.toggle('hidden', audioMuted);
+            document.getElementById('icon-sound-off').classList.toggle('hidden', !audioMuted);
+            if (riverNoise) {
+                riverNoise.volume.value = audioMuted ? -100 : -22;
+            }
+        }
+
+        // =========================================================================
+        // 2. DID YOU KNOW FACTS & STAGE CONFIGURATIONS
+        // =========================================================================
+        const DID_YOU_KNOW_FACTS = [
+            "“There are only 5,000 - 10,000 Tarapirohe left.”",
+            "“Their worst predator — one cat can wipe out an entire nesting colony in one night.”",
+            "“Some of their predators are good swimmers, so they can easily swim across the river and eat their eggs.”",
+            "“They lay eggs right on bare river stones, making them easy to find and eat.”",
+            "“Plants like lupin and gorse overgrow bare gravel, and dams dry up channels so predators walk right up to islands.”"
+        ];
+
+        const STAGE_CONFIGS = [
+            { stage: 1, name: "Calm Current",     eggs: 3, predators: 5,  speedMult: 1.0, dryChannels: 0.15 },
+            { stage: 2, name: "Rising Predator",  eggs: 4, predators: 7,  speedMult: 1.18, dryChannels: 0.30 },
+            { stage: 3, name: "Lupin Overgrowth", eggs: 5, predators: 9,  speedMult: 1.35, dryChannels: 0.45 },
+            { stage: 4, name: "Low Flow Drought", eggs: 6, predators: 12, speedMult: 1.52, dryChannels: 0.65 },
+            { stage: 5, name: "Night Raid",       eggs: 7, predators: 15, speedMult: 1.70, dryChannels: 0.80 }
+        ];
+
+        // =========================================================================
+        // 3. GAME STATE & METRICS
+        // =========================================================================
+        let gameState = 'HOOK'; // HOOK, LOADING, PLAYING, IMPACT
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        const stats = {
+            stage: 1,
+            health: 100,
+            maxHealth: 100,
+            eggsSaved: 0,
+            eggsMissed: 0,
+            enemiesDodged: 0,
+            damageTaken: 0,
+            xp: 0,
+            won: false
+        };
+
+        // Player (Tarapirohe - Black-fronted tern)
+        const player = {
+            x: 120,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            speed: 270,
+            radius: 22,
+            wingPhase: 0,
+            angle: 0,
+            landed: false,
+            carryingEggs: 0,
+            invulnTimer: 0,
+            targetClick: null, // Clickable river map destination
+            holdQProgress: 0,  // 0 to 1 for collecting egg
+            holdEProgress: 0   // 0 to 1 for placing eggs in nest
+        };
+
+        // World Entities
+        let gravelIslands = [];
+        let riverChannels = [];
+        let lupinBushes = [];
+        let eggs = [];
+        let predators = [];
+        let waterParticles = [];
+        let sakuraPetals = [];
+        let finishIsland = { x: 0, y: 0, radius: 75, nestX: 0, nestY: 0 };
+
+        // Input State
+        const keys = { w: false, a: false, s: false, d: false, q: false, e: false, space: false };
+        const joystick = { active: false, id: null, dx: 0, dy: 0 };
+
+        // =========================================================================
+        // 4. RESPONSIVE CANVAS RESIZING
+        // =========================================================================
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (gameState === 'PLAYING') {
+                updateFinishIslandCoords();
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function updateFinishIslandCoords() {
+            // Top-right / Right bank braided sanctuary island (matches concept art layout)
+            finishIsland.x = width - Math.max(105, width * 0.11);
+            finishIsland.y = Math.max(145, height * 0.24);
+            finishIsland.radius = Math.min(82, Math.max(58, width * 0.065));
+            finishIsland.nestX = finishIsland.x;
+            finishIsland.nestY = finishIsland.y - 6;
+        }
+
+        // =========================================================================
+        // 5. PROCEDURAL BRAIDED RIVER MAP & LEVEL GENERATOR
+        // =========================================================================
+        function buildStageWorld(stageNum) {
+            const cfg = STAGE_CONFIGS[stageNum - 1];
+            updateFinishIslandCoords();
+
+            // Reset player at bottom-left coastal river mouth (like the artwork)
+            player.x = Math.max(85, width * 0.10);
+            player.y = height - Math.max(125, height * 0.18);
+            player.vx = 0;
+            player.vy = 0;
+            player.landed = false;
+            player.carryingEggs = 0;
+            player.targetClick = null;
+            player.holdQProgress = 0;
+            player.holdEProgress = 0;
+            player.invulnTimer = 1.5;
+
+            // Generate braided river gravel islands (Grey shingle bars)
+            gravelIslands = [];
+            const cols = 4;
+            const rows = 3;
+            const playLeft = width * 0.18;
+            const playRight = width * 0.80;
+            const playTop = height * 0.16;
+            const playBottom = height * 0.84;
+
+            for (let c = 0; c < cols; c++) {
+                for (let r = 0; r < rows; r++) {
+                    const jitterX = (Math.sin(c * 7 + r * 3 + stageNum) * 0.35) * ((playRight - playLeft) / cols);
+                    const jitterY = (Math.cos(c * 5 + r * 11 + stageNum) * 0.35) * ((playBottom - playTop) / rows);
+                    const ix = playLeft + (c + 0.5) * ((playRight - playLeft) / cols) + jitterX;
+                    const iy = playTop + (r + 0.5) * ((playBottom - playTop) / rows) + jitterY;
+                    const rx = 55 + ((c + r) % 3) * 18;
+                    const ry = 34 + ((c * 2 + r) % 3) * 12;
+                    const rot = ((c - r) * 0.25) - 0.35;
+
+                    // Generate individual river stones on this shingle bar
+                    const stones = [];
+                    for (let s = 0; s < 14; s++) {
+                        const sa = (s / 14) * Math.PI * 2;
+                        const sr = (0.2 + (s % 5) * 0.14);
+                        stones.push({
+                            ox: Math.cos(sa) * rx * sr,
+                            oy: Math.sin(sa) * ry * sr,
+                            r: 3 + (s % 4) * 1.8,
+                            shade: 115 + (s % 4) * 18
+                        });
+                    }
+
+                    gravelIslands.push({ x: ix, y: iy, rx, ry, rot, stones });
+                }
+            }
+
+            // Generate Invasive Lupin & Gorse bushes (Fact 5: overgrow bare gravel & hide predators)
+            lupinBushes = [];
+            const bushCount = 4 + stageNum * 2;
+            for (let i = 0; i < bushCount; i++) {
+                const isl = gravelIslands[i % gravelIslands.length];
+                const angle = (i * 2.1);
+                lupinBushes.push({
+                    x: isl.x + Math.cos(angle) * (isl.rx * 0.65),
+                    y: isl.y + Math.sin(angle) * (isl.ry * 0.65),
+                    radius: 18 + (i % 3) * 6,
+                    hasLupinFlowers: i % 2 === 0
+                });
+            }
+
+            // Place Tarapirohe Eggs on bare river gravel stones (Fact 2)
+            eggs = [];
+            const chosenIndices = [];
+            while (chosenIndices.length < cfg.eggs && chosenIndices.length < gravelIslands.length) {
+                const idx = Math.floor(Math.random() * gravelIslands.length);
+                if (!chosenIndices.includes(idx)) {
+                    chosenIndices.push(idx);
+                    const isl = gravelIslands[idx];
+                    eggs.push({
+                        x: isl.x,
+                        y: isl.y,
+                        collected: false,
+                        saved: false,
+                        pulse: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            // Spawn Predators on both sides & swimming channels (Feral Cats, Stoats, Hedgehogs, Gulls)
+            predators = [];
+            const types = ['cat', 'stoat', 'hedgehog', 'gull'];
+            for (let p = 0; p < cfg.predators; p++) {
+                const type = types[p % types.length];
+                // Spawn from left bank, right bank, or mid-river islands
+                const side = p % 2 === 0 ? 'left' : 'right';
+                const spawnX = side === 'left'
+                    ? width * (0.16 + Math.random() * 0.25)
+                    : width * (0.55 + Math.random() * 0.28);
+                const spawnY = height * (0.15 + Math.random() * 0.70);
+
+                const baseSpeed = (type === 'cat' ? 95 : type === 'stoat' ? 105 : type === 'gull' ? 115 : 65) * cfg.speedMult;
+                const moveAngle = Math.random() * Math.PI * 2;
+
+                predators.push({
+                    type,
+                    x: spawnX,
+                    y: spawnY,
+                    vx: Math.cos(moveAngle) * baseSpeed,
+                    vy: Math.sin(moveAngle) * baseSpeed,
+                    speed: baseSpeed,
+                    radius: type === 'cat' ? 21 : type === 'stoat' ? 18 : type === 'gull' ? 19 : 16,
+                    patrolCenterX: spawnX,
+                    patrolCenterY: spawnY,
+                    patrolRange: 130 + Math.random() * 90,
+                    animPhase: Math.random() * Math.PI * 2,
+                    dodgedCooldown: 0,
+                    canSeePlayer: false
+                });
+            }
+
+            // Flowing braided water ripples & drifting sakura petals
+            waterParticles = [];
+            for (let w = 0; w < 65; w++) {
+                waterParticles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    len: 28 + Math.random() * 44,
+                    speed: 35 + Math.random() * 45,
+                    alpha: 0.25 + Math.random() * 0.35
+                });
+            }
+
+            sakuraPetals = [];
+            for (let s = 0; s < 26; s++) {
+                sakuraPetals.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: 18 + Math.random() * 24,
+                    vy: 14 + Math.random() * 20,
+                    rot: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 3,
+                    size: 4 + Math.random() * 3.5
+                });
+            }
+
+            updateHud();
+        }
+
+        // =========================================================================
+        // 6. SCREEN TRANSITIONS & FLOW (Hook -> Loading Fact -> Action -> Impact)
+        // =========================================================================
+        let loadingTimer = null;
+        let deathTimeout = null;
+        let typewriterTimer = null;
+        let typewriterAdvanceTimeout = null;
+
+        function startNewGame() {
+            initAudio();
+            stats.stage = 1;
+            stats.health = 100;
+            stats.eggsSaved = 0;
+            stats.eggsMissed = 0;
+            stats.enemiesDodged = 0;
+            stats.damageTaken = 0;
+            stats.xp = 0;
+            stats.won = false;
+
+            if (deathTimeout) clearTimeout(deathTimeout);
+            if (typewriterTimer) clearInterval(typewriterTimer);
+            if (typewriterAdvanceTimeout) clearTimeout(typewriterAdvanceTimeout);
+
+            document.getElementById('screen-hook').classList.add('hidden');
+            document.getElementById('screen-death').classList.add('hidden');
+            document.getElementById('screen-typewriter').classList.add('hidden');
+            document.getElementById('screen-impact').classList.add('hidden');
+            showLoadingScreenForStage(1);
+        }
+
+        function showLoadingScreenForStage(stageNum) {
+            gameState = 'LOADING';
+            document.getElementById('hud-overlay').classList.add('hidden');
+            document.getElementById('controls-overlay').classList.add('hidden');
+            document.getElementById('context-prompt').classList.add('hidden');
+
+            const loadScreen = document.getElementById('screen-loading');
+            loadScreen.classList.remove('hidden');
+
+            document.getElementById('loading-stage-num').textContent = stageNum;
+            document.getElementById('loading-btn-stage').textContent = stageNum;
+            document.getElementById('loading-fact-text').textContent = DID_YOU_KNOW_FACTS[stageNum - 1];
+
+            const cfg = STAGE_CONFIGS[stageNum - 1];
+            document.getElementById('loading-stage-desc').textContent =
+                `Chapter ${stageNum} (${cfg.name}): Collect up to ${cfg.eggs} eggs from bare river shingle and dodge ${cfg.predators} predators!`;
+
+            const bar = document.getElementById('loading-bar-fill');
+            bar.style.width = '0%';
+
+            if (loadingTimer) clearInterval(loadingTimer);
+            let progress = 0;
+            loadingTimer = setInterval(() => {
+                progress += 4;
+                bar.style.width = `${Math.min(100, progress)}%`;
+                if (progress >= 100) {
+                    clearInterval(loadingTimer);
+                    beginStageNow();
+                }
+            }, 95);
+        }
+
+        function beginStageNow() {
+            if (loadingTimer) clearInterval(loadingTimer);
+            document.getElementById('screen-loading').classList.add('hidden');
+            document.getElementById('hud-overlay').classList.remove('hidden');
+            document.getElementById('controls-overlay').classList.remove('hidden');
+
+            buildStageWorld(stats.stage);
+            gameState = 'PLAYING';
+        }
+
+        function completeCurrentStage() {
+            const uncollectedInStage = eggs.filter(e => !e.saved).length;
+            stats.eggsMissed += uncollectedInStage;
+            stats.xp += 200 * stats.stage + (player.carryingEggs * 100);
+
+            if (stats.stage < 5) {
+                stats.stage += 1;
+                showLoadingScreenForStage(stats.stage);
+            } else {
+                stats.won = true;
+                stats.xp += 500;
+                showPreResultsTypewriter();
+            }
+        }
+
+        function showJapaneseDeathScreen() {
+            gameState = 'DEATH';
+            document.getElementById('hud-overlay').classList.add('hidden');
+            document.getElementById('controls-overlay').classList.add('hidden');
+            document.getElementById('context-prompt').classList.add('hidden');
+
+            const deathScreen = document.getElementById('screen-death');
+            deathScreen.classList.remove('hidden');
+
+            if (deathTimeout) clearTimeout(deathTimeout);
+            deathTimeout = setTimeout(() => {
+                proceedFromDeathScreen();
+            }, 2600);
+        }
+
+        function proceedFromDeathScreen() {
+            if (deathTimeout) clearTimeout(deathTimeout);
+            document.getElementById('screen-death').classList.add('hidden');
+            showPreResultsTypewriter();
+        }
+
+        function showPreResultsTypewriter() {
+            gameState = 'TYPEWRITER';
+            document.getElementById('hud-overlay').classList.add('hidden');
+            document.getElementById('controls-overlay').classList.add('hidden');
+            document.getElementById('context-prompt').classList.add('hidden');
+
+            const twScreen = document.getElementById('screen-typewriter');
+            const twText = document.getElementById('typewriter-text');
+            const continueBtn = document.getElementById('btn-continue-results');
+
+            twScreen.classList.remove('hidden');
+            continueBtn.classList.add('hidden');
+            twText.textContent = '';
+
+            const message = "this is what tarapirohe have to go through just to find a safe place to put their eggs, predators are always trying to eat them and their eggs";
+            let index = 0;
+
+            if (typewriterTimer) clearInterval(typewriterTimer);
+            if (typewriterAdvanceTimeout) clearTimeout(typewriterAdvanceTimeout);
+
+            typewriterTimer = setInterval(() => {
+                if (index < message.length) {
+                    twText.textContent += message.charAt(index);
+                    index++;
+                } else {
+                    clearInterval(typewriterTimer);
+                    continueBtn.classList.remove('hidden');
+                    typewriterAdvanceTimeout = setTimeout(() => {
+                        finishTypewriterToImpact();
+                    }, 2200);
+                }
+            }, 42);
+        }
+
+        function finishTypewriterToImpact() {
+            if (typewriterTimer) clearInterval(typewriterTimer);
+            if (typewriterAdvanceTimeout) clearTimeout(typewriterAdvanceTimeout);
+            document.getElementById('screen-typewriter').classList.add('hidden');
+            showImpactScreen();
+        }
+
+        function showImpactScreen() {
+            gameState = 'IMPACT';
+            document.getElementById('hud-overlay').classList.add('hidden');
+            document.getElementById('controls-overlay').classList.add('hidden');
+            document.getElementById('context-prompt').classList.add('hidden');
+            document.getElementById('screen-typewriter').classList.add('hidden');
+
+            const impactScreen = document.getElementById('screen-impact');
+            impactScreen.classList.remove('hidden');
+
+            // Populate Far Left Box: Eggs Captured & Saved + Eggs Missed
+            document.getElementById('end-eggs-saved').textContent = stats.eggsSaved;
+            document.getElementById('end-eggs-missed').textContent = stats.eggsMissed;
+
+            // Populate Middle Box: XP Gained & Victory Text Underneath
+            document.getElementById('end-xp').textContent = `${stats.xp.toLocaleString()} XP`;
+            const victoryTitle = document.getElementById('end-victory-text');
+            const subMsg = document.getElementById('end-sub-message');
+            const badge = document.getElementById('impact-badge');
+
+            if (stats.won) {
+                badge.textContent = "⛩️ All 5 Braided River Chapters Cleared";
+                badge.className = "inline-block px-4 py-1 rounded bg-emerald-900/15 border border-emerald-800 text-emerald-900 text-xs font-bold uppercase tracking-widest";
+                victoryTitle.textContent = "YOU BEAT THE GAME!";
+                victoryTitle.className = "font-display text-lg sm:text-xl font-extrabold text-emerald-800 tracking-wide";
+                subMsg.textContent = "You crossed the braided river across all 5 chapters and protected the rare Tarapirohe colony!";
+            } else {
+                badge.textContent = "Colony Under Threat";
+                badge.className = "inline-block px-4 py-1 rounded bg-red-900/15 border border-red-800 text-red-900 text-xs font-bold uppercase tracking-widest";
+                victoryTitle.textContent = "PREDATORS OVERWHELMED THE COLONY";
+                victoryTitle.className = "font-display text-lg sm:text-xl font-extrabold text-red-800 tracking-wide";
+                subMsg.textContent = "Introduced predators caught up with the Tarapirohe. Try again to protect more eggs across the river!";
+            }
+
+            // Populate Far Right Box: Enemies Dodged & Damage Taken
+            document.getElementById('end-enemies-dodged').textContent = stats.enemiesDodged;
+            document.getElementById('end-damage-taken').textContent = `${stats.damageTaken} HP`;
+        }
+
+        // =========================================================================
+        // 7. INPUT HANDLING (WASD, Q, Space, E, Clickable River Map, Joystick)
+        // =========================================================================
+        window.addEventListener('keydown', (e) => {
+            const k = e.key.toLowerCase();
+            if (k === 'w' || e.key === 'ArrowUp') { keys.w = true; player.targetClick = null; }
+            if (k === 'a' || e.key === 'ArrowLeft') { keys.a = true; player.targetClick = null; }
+            if (k === 's' || e.key === 'ArrowDown') { keys.s = true; player.targetClick = null; }
+            if (k === 'd' || e.key === 'ArrowRight') { keys.d = true; player.targetClick = null; }
+            if (k === 'q') {
+                keys.q = true;
+                document.getElementById('btn-action-q').classList.add('active-press');
+            }
+            if (k === 'e') {
+                keys.e = true;
+                document.getElementById('btn-action-e').classList.add('active-press');
+            }
+            if (e.code === 'Space') {
+                e.preventDefault();
+                keys.space = true;
+                document.getElementById('btn-action-space').classList.add('active-press');
+                triggerLandAction();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if (k === 'w' || e.key === 'ArrowUp') keys.w = false;
+            if (k === 'a' || e.key === 'ArrowLeft') keys.a = false;
+            if (k === 's' || e.key === 'ArrowDown') keys.s = false;
+            if (k === 'd' || e.key === 'ArrowRight') keys.d = false;
+            if (k === 'q') {
+                keys.q = false;
+                document.getElementById('btn-action-q').classList.remove('active-press');
+            }
+            if (k === 'e') {
+                keys.e = false;
+                document.getElementById('btn-action-e').classList.remove('active-press');
+            }
+            if (e.code === 'Space') {
+                keys.space = false;
+                document.getElementById('btn-action-space').classList.remove('active-press');
+            }
+        });
+
+        // Clickable River Map Navigation
+        canvas.addEventListener('pointerdown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            initAudio();
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            player.targetClick = { x: clickX, y: clickY };
+        });
+
+        // Virtual Joystick Touch Logic (iPad / iPhone)
+        const joyZone = document.getElementById('joystick-zone');
+        const joyKnob = document.getElementById('joystick-knob');
+
+        joyZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            initAudio();
+            const touch = e.changedTouches[0];
+            joystick.active = true;
+            joystick.id = touch.identifier;
+            player.targetClick = null;
+            updateJoystickPosition(touch);
+        }, { passive: false });
+
+        joyZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystick.id) {
+                    updateJoystickPosition(e.changedTouches[i]);
+                }
+            }
+        }, { passive: false });
+
+        function resetJoystick() {
+            joystick.active = false;
+            joystick.id = null;
+            joystick.dx = 0;
+            joystick.dy = 0;
+            joyKnob.style.transform = `translate(0px, 0px)`;
+        }
+
+        joyZone.addEventListener('touchend', resetJoystick);
+        joyZone.addEventListener('touchcancel', resetJoystick);
+
+        function updateJoystickPosition(touch) {
+            const rect = joyZone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const maxDist = 38;
+            let rawX = touch.clientX - centerX;
+            let rawY = touch.clientY - centerY;
+            const dist = Math.hypot(rawX, rawY);
+            if (dist > maxDist) {
+                rawX = (rawX / dist) * maxDist;
+                rawY = (rawY / dist) * maxDist;
+            }
+            joyKnob.style.transform = `translate(${rawX}px, ${rawY}px)`;
+            joystick.dx = rawX / maxDist;
+            joystick.dy = rawY / maxDist;
+        }
+
+        // Touch & Mouse Hold Bindings for Action Buttons (Q, Space, E)
+        function bindHoldButton(btnId, keyName, onPressCallback) {
+            const btn = document.getElementById(btnId);
+            const startHold = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                initAudio();
+                keys[keyName] = true;
+                btn.classList.add('active-press');
+                if (onPressCallback) onPressCallback();
+            };
+            const endHold = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                keys[keyName] = false;
+                btn.classList.remove('active-press');
+            };
+            btn.addEventListener('mousedown', startHold);
+            btn.addEventListener('mouseup', endHold);
+            btn.addEventListener('mouseleave', endHold);
+            btn.addEventListener('touchstart', startHold, { passive: false });
+            btn.addEventListener('touchend', endHold, { passive: false });
+            btn.addEventListener('touchcancel', endHold, { passive: false });
+        }
+
+        bindHoldButton('btn-action-q', 'q');
+        bindHoldButton('btn-action-e', 'e');
+        bindHoldButton('btn-action-space', 'space', triggerLandAction);
+
+        // Land on the Finishing Island (Space bar or second button)
+        function triggerLandAction() {
+            if (gameState !== 'PLAYING') return;
+            const distToFinish = Math.hypot(player.x - finishIsland.x, player.y - finishIsland.y);
+            if (distToFinish <= finishIsland.radius + 35) {
+                player.landed = !player.landed;
+                player.targetClick = null;
+                playSfx('land');
+                updateHud();
+            }
+        }
+
+        // =========================================================================
+        // 8. HUD & PROMPT UPDATER
+        // =========================================================================
+        function updateHud() {
+            const cfg = STAGE_CONFIGS[stats.stage - 1];
+            document.getElementById('hud-stage').textContent = stats.stage;
+            document.getElementById('hud-difficulty').textContent = cfg.name;
+            document.getElementById('hud-carrying').textContent = player.carryingEggs;
+            document.getElementById('hud-saved').textContent = eggs.filter(e => e.saved).length;
+            document.getElementById('hud-total-eggs').textContent = cfg.eggs;
+            document.getElementById('hud-dodged').textContent = stats.enemiesDodged;
+            document.getElementById('hud-flight-state').textContent = player.landed ? "Landed on Island" : "Flying";
+
+            // 100 HP Health Bar & Numeric Readout
+            const pct = Math.max(0, Math.min(100, stats.health));
+            const hBar = document.getElementById('hud-health-bar');
+            const hpText = document.getElementById('hud-hp-text');
+            hBar.style.width = `${pct}%`;
+            hpText.textContent = `${Math.ceil(pct)} / 100 HP`;
+
+            if (pct > 60) {
+                hBar.className = "h-full rounded-sm bg-gradient-to-r from-emerald-800 via-teal-700 to-sky-800 transition-all duration-300";
+                hpText.className = "text-xs sm:text-sm font-extrabold text-emerald-800";
+            } else if (pct > 30) {
+                hBar.className = "h-full rounded-sm bg-gradient-to-r from-amber-700 to-yellow-600 transition-all duration-300";
+                hpText.className = "text-xs sm:text-sm font-extrabold text-amber-800";
+            } else {
+                hBar.className = "h-full rounded-sm bg-gradient-to-r from-red-800 to-red-600 transition-all duration-300";
+                hpText.className = "text-xs sm:text-sm font-extrabold text-red-800";
+            }
+        }
+
+        // Helper: Check if predator has clear line of sight to the Tarapirohe
+        function canPredatorSeePlayer(pred) {
+            const dx = player.x - pred.x;
+            const dy = player.y - pred.y;
+            const dist = Math.hypot(dx, dy);
+            const visionRange = pred.type === 'cat' ? 145 : pred.type === 'gull' ? 160 : 120;
+            if (dist > visionRange) return false;
+
+            // Check predator's facing angle cone (~68 degree field of view)
+            const facingAngle = Math.atan2(pred.vy, pred.vx);
+            const angleToPlayer = Math.atan2(dy, dx);
+            let angleDiff = angleToPlayer - facingAngle;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            if (Math.abs(angleDiff) > 0.6) return false;
+
+            // Check if dense lupin/gorse bushes block the predator's line of sight
+            for (const bush of lupinBushes) {
+                const bx = bush.x - pred.x;
+                const by = bush.y - pred.y;
+                const proj = (bx * dx + by * dy) / (dist * dist);
+                if (proj > 0.1 && proj < 0.9) {
+                    const closestX = pred.x + proj * dx;
+                    const closestY = pred.y + proj * dy;
+                    if (Math.hypot(bush.x - closestX, bush.y - closestY) < bush.radius * 0.85) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        // =========================================================================
+        // 9. GAME SIMULATION & PHYSICS UPDATE
+        // =========================================================================
+        function updateSimulation(dt) {
+            if (gameState !== 'PLAYING') return;
+
+            if (player.invulnTimer > 0) {
+                player.invulnTimer = Math.max(0, player.invulnTimer - dt);
+            }
+
+            // Animate flowing braided river particles, sakura petals & pulsing eggs
+            for (const wp of waterParticles) {
+                wp.x += wp.speed * dt;
+                wp.y -= wp.speed * 0.35 * dt;
+                if (wp.x > width + 50) wp.x = -50;
+                if (wp.y < -50) wp.y = height + 50;
+            }
+            for (const sp of sakuraPetals) {
+                sp.x += sp.vx * dt;
+                sp.y += sp.vy * dt;
+                sp.rot += sp.rotSpeed * dt;
+                if (sp.x > width + 20) sp.x = -20;
+                if (sp.y > height + 20) sp.y = -20;
+            }
+            for (const egg of eggs) {
+                egg.pulse += dt * 4.5;
+            }
+
+            // Movement input (WASD, Joystick, or Clickable Map Destination)
+            let moveX = 0;
+            let moveY = 0;
+            if (keys.w) moveY -= 1;
+            if (keys.s) moveY += 1;
+            if (keys.a) moveX -= 1;
+            if (keys.d) moveX += 1;
+
+            if (joystick.active) {
+                moveX = joystick.dx;
+                moveY = joystick.dy;
+            } else if (moveX === 0 && moveY === 0 && player.targetClick) {
+                const dx = player.targetClick.x - player.x;
+                const dy = player.targetClick.y - player.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 8) {
+                    moveX = dx / dist;
+                    moveY = dy / dist;
+                } else {
+                    player.targetClick = null;
+                }
+            }
+
+            const mag = Math.hypot(moveX, moveY);
+            if (mag > 1) {
+                moveX /= mag;
+                moveY /= mag;
+            }
+
+            // Taking off if moving away while landed
+            if (player.landed && mag > 0.25) {
+                const distToFinish = Math.hypot(player.x - finishIsland.x, player.y - finishIsland.y);
+                if (distToFinish > finishIsland.radius * 0.85) {
+                    player.landed = false;
+                    updateHud();
+                }
+            }
+
+            const currentSpeed = player.landed ? player.speed * 0.45 : player.speed;
+            player.vx = moveX * currentSpeed;
+            player.vy = moveY * currentSpeed;
+            player.x = Math.max(30, Math.min(width - 30, player.x + player.vx * dt));
+            player.y = Math.max(30, Math.min(height - 30, player.y + player.vy * dt));
+
+            if (mag > 0.05) {
+                player.angle = Math.atan2(moveY, moveX);
+                player.wingPhase += dt * 16;
+            } else {
+                player.wingPhase += dt * 7;
+            }
+
+            // Contextual prompts & Hold Q (Collect Egg) / Hold E (Place in Nest)
+            const promptEl = document.getElementById('context-prompt');
+            const promptIcon = document.getElementById('context-prompt-icon');
+            const promptText = document.getElementById('context-prompt-text');
+            let showPrompt = false;
+
+            // Check nearby uncollected eggs
+            let nearestEgg = null;
+            let nearestEggDist = 48;
+            for (const egg of eggs) {
+                if (!egg.collected && !egg.saved) {
+                    const d = Math.hypot(player.x - egg.x, player.y - egg.y);
+                    if (d < nearestEggDist) {
+                        nearestEggDist = d;
+                        nearestEgg = egg;
+                    }
+                }
+            }
+
+            if (nearestEgg) {
+                showPrompt = true;
+                promptIcon.textContent = '🥚';
+                promptText.textContent = 'Hold [Q] or [Collect] to pick up egg';
+                if (keys.q) {
+                    player.holdQProgress = Math.min(1, player.holdQProgress + dt * 1.45);
+                    if (player.holdQProgress >= 1) {
+                        nearestEgg.collected = true;
+                        player.carryingEggs += 1;
+                        player.holdQProgress = 0;
+                        stats.xp += 75;
+                        playSfx('egg');
+                        updateHud();
+                    }
+                } else {
+                    player.holdQProgress = Math.max(0, player.holdQProgress - dt * 2.5);
+                }
+            } else {
+                player.holdQProgress = Math.max(0, player.holdQProgress - dt * 2.5);
+            }
+
+            // Check proximity to Finishing Island & Nest
+            const distToFinish = Math.hypot(player.x - finishIsland.x, player.y - finishIsland.y);
+            if (distToFinish <= finishIsland.radius + 35) {
+                showPrompt = true;
+                if (!player.landed) {
+                    promptIcon.textContent = '🏝️';
+                    promptText.textContent = 'Press [Space] or [LAND] to land on sanctuary island';
+                } else if (player.carryingEggs > 0) {
+                    promptIcon.textContent = '🪺';
+                    promptText.textContent = 'Hold [E] or [Nest] to place eggs safely in the nest!';
+                } else {
+                    promptIcon.textContent = '✨';
+                    promptText.textContent = 'Hold [E] or [Nest] to complete crossing (or gather more eggs)';
+                }
+
+                if (player.landed && keys.e) {
+                    player.holdEProgress = Math.min(1, player.holdEProgress + dt * 1.35);
+                    if (player.holdEProgress >= 1) {
+                        // Deposit carried eggs into nest
+                        for (const egg of eggs) {
+                            if (egg.collected && !egg.saved) {
+                                egg.saved = true;
+                            }
+                        }
+                        stats.eggsSaved += player.carryingEggs;
+                        player.holdEProgress = 0;
+                        playSfx('nest');
+                        updateHud();
+                        completeCurrentStage();
+                        return;
+                    }
+                } else {
+                    player.holdEProgress = Math.max(0, player.holdEProgress - dt * 2.5);
+                }
+            } else {
+                player.holdEProgress = Math.max(0, player.holdEProgress - dt * 2.5);
+            }
+
+            // Update circular progress rings on Q and E buttons
+            document.getElementById('ring-q').style.strokeDashoffset = 226 * (1 - player.holdQProgress);
+            document.getElementById('ring-e').style.strokeDashoffset = 226 * (1 - player.holdEProgress);
+            promptEl.classList.toggle('hidden', !showPrompt);
+
+            // Update Predators (Line-of-sight detection, chasing, patrol & dodge tracking)
+            for (const pred of predators) {
+                pred.animPhase += dt * 7;
+                if (pred.dodgedCooldown > 0) pred.dodgedCooldown -= dt;
+
+                const spotted = canPredatorSeePlayer(pred);
+                pred.canSeePlayer = spotted;
+
+                if (spotted) {
+                    // Chase player while inside line of sight
+                    const dx = player.x - pred.x;
+                    const dy = player.y - pred.y;
+                    const d = Math.hypot(dx, dy) || 1;
+                    const chaseSpeed = pred.speed * 1.25;
+                    pred.vx = (dx / d) * chaseSpeed;
+                    pred.vy = (dy / d) * chaseSpeed;
+                } else {
+                    // Gentle patrol around home territory
+                    const distHome = Math.hypot(pred.x - pred.patrolCenterX, pred.y - pred.patrolCenterY);
+                    if (distHome > pred.patrolRange) {
+                        const toHomeAngle = Math.atan2(pred.patrolCenterY - pred.y, pred.patrolCenterX - pred.x);
+                        pred.vx = Math.cos(toHomeAngle) * pred.speed;
+                        pred.vy = Math.sin(toHomeAngle) * pred.speed;
+                    } else if (Math.random() < dt * 0.8) {
+                        const turnAngle = Math.atan2(pred.vy, pred.vx) + (Math.random() - 0.5) * 1.4;
+                        pred.vx = Math.cos(turnAngle) * pred.speed;
+                        pred.vy = Math.sin(turnAngle) * pred.speed;
+                    }
+                }
+
+                pred.x += pred.vx * dt;
+                pred.y += pred.vy * dt;
+
+                // Keep predators inside playable river boundaries
+                if (pred.x < 60 || pred.x > width - 60) pred.vx *= -1;
+                if (pred.y < 60 || pred.y > height - 60) pred.vy *= -1;
+
+                // Collision & Dodge Detection (Only damages when predator can see you)
+                const distToPlayer = Math.hypot(player.x - pred.x, player.y - pred.y);
+                const hitDist = player.radius + pred.radius - 4;
+
+                if (spotted && distToPlayer < hitDist && player.invulnTimer <= 0) {
+                    const dmg = 5;
+                    stats.health = Math.max(0, stats.health - dmg);
+                    stats.damageTaken += dmg;
+                    player.invulnTimer = 1.6;
+                    playSfx('hit');
+                    updateHud();
+
+                    if (stats.health <= 0) {
+                        stats.won = false;
+                        showJapaneseDeathScreen();
+                        return;
+                    }
+                } else if (distToPlayer < hitDist + 38 && pred.dodgedCooldown <= 0) {
+                    stats.enemiesDodged += 1;
+                    stats.xp += 35;
+                    pred.dodgedCooldown = 3.0;
+                    playSfx('dodge');
+                    updateHud();
+                }
+            }
+        }
+
+        // =========================================================================
+        // 10. UKIYO-E JAPANESE WOODBLOCK CANVAS RENDERER
+        //     (Washi Paper, Indigo Currents, Torii Shrine, Sumi-e Ink Animals)
+        // =========================================================================
+        function renderScene() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 1. Ukiyo-e Indigo & Washi Cream Braided River Base
+            const riverGrad = ctx.createLinearGradient(0, height, width, 0);
+            riverGrad.addColorStop(0, '#1e3a5f');    // Deep Prussian Indigo at river mouth
+            riverGrad.addColorStop(0.45, '#2b547e'); // Traditional Ai-iro indigo water
+            riverGrad.addColorStop(0.8, '#4a7c9b');  // Soft slate-blue current
+            riverGrad.addColorStop(1, '#e8dcc4');    // Warm Washi horizon mist
+            ctx.fillStyle = riverGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle Rising Sun Disc in the distant mist (Ukiyo-e motif)
+            ctx.save();
+            ctx.fillStyle = 'rgba(185, 28, 28, 0.22)';
+            ctx.beginPath();
+            ctx.arc(width * 0.72, height * 0.16, Math.min(width, height) * 0.14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // 2. Matcha Moss & Washi Gold Riverbanks with Ink Outlines
+            ctx.save();
+            const bankGradRight = ctx.createLinearGradient(width * 0.55, height * 0.4, width, height);
+            bankGradRight.addColorStop(0, '#78866b'); // Matcha moss green
+            bankGradRight.addColorStop(0.55, '#5c6b50');
+            bankGradRight.addColorStop(1, '#3f4a36');
+            ctx.fillStyle = bankGradRight;
+            ctx.beginPath();
+            ctx.moveTo(width, height * 0.36);
+            ctx.bezierCurveTo(width * 0.78, height * 0.44, width * 0.68, height * 0.72, width * 0.52, height);
+            ctx.lineTo(width, height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Sumi-e woodblock ink shoreline contour
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(width, height * 0.36);
+            ctx.bezierCurveTo(width * 0.78, height * 0.44, width * 0.68, height * 0.72, width * 0.52, height);
+            ctx.stroke();
+
+            // Top-Left & Starting Left Bank
+            const leftBankGrad = ctx.createLinearGradient(0, 0, width * 0.25, height * 0.5);
+            leftBankGrad.addColorStop(0, '#6b7b5e');
+            leftBankGrad.addColorStop(1, '#8c9c7d');
+            ctx.fillStyle = leftBankGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(width * 0.32, 0);
+            ctx.bezierCurveTo(width * 0.22, height * 0.25, width * 0.14, height * 0.45, 0, height * 0.62);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // 3. Hokusai-style Flowing Water Wave Lines
+            ctx.lineCap = 'round';
+            for (const wp of waterParticles) {
+                ctx.strokeStyle = `rgba(250, 243, 228, ${wp.alpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(wp.x, wp.y);
+                ctx.quadraticCurveTo(wp.x + wp.len * 0.5, wp.y - wp.len * 0.25 - 4, wp.x + wp.len, wp.y - wp.len * 0.35);
+                ctx.stroke();
+            }
+
+            // 4. Woodblock Shingle Gravel Islands (Warm Washi Stone & Ink Contours)
+            for (const isl of gravelIslands) {
+                ctx.save();
+                ctx.translate(isl.x, isl.y);
+                ctx.rotate(isl.rot);
+
+                // Washi foam ripple ring
+                ctx.strokeStyle = 'rgba(250, 243, 228, 0.45)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, isl.rx + 10, isl.ry + 7, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Warm river stone gravel island with sumi-e ink outline
+                const stoneGrad = ctx.createRadialGradient(-10, -8, 5, 0, 0, isl.rx);
+                stoneGrad.addColorStop(0, '#e7dcc8');
+                stoneGrad.addColorStop(0.65, '#c7b89d');
+                stoneGrad.addColorStop(1, '#9c8c72');
+                ctx.fillStyle = stoneGrad;
+                ctx.strokeStyle = '#292524';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, isl.rx, isl.ry, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Ink-outlined river stones
+                for (const st of isl.stones) {
+                    ctx.fillStyle = `rgb(${st.shade + 35}, ${st.shade + 25}, ${st.shade + 10})`;
+                    ctx.beginPath();
+                    ctx.arc(st.ox, st.oy, st.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            // 5. Japanese Pine & Blossom Shrubs (Lupin & Gorse)
+            for (const bush of lupinBushes) {
+                ctx.save();
+                ctx.translate(bush.x, bush.y);
+                ctx.fillStyle = '#3f6212';
+                ctx.strokeStyle = '#1c1917';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, bush.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#4d7c0f';
+                ctx.beginPath();
+                ctx.arc(-3, -3, bush.radius * 0.65, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Sakura pink or Yamabuki gold blossoms
+                ctx.fillStyle = bush.hasLupinFlowers ? '#f9a8d4' : '#eab308';
+                ctx.beginPath();
+                ctx.arc(-5, -6, 4, 0, Math.PI * 2);
+                ctx.arc(6, -3, 4, 0, Math.PI * 2);
+                ctx.arc(0, 5, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 6. Finishing Sanctuary Island with Vermilion Torii Gate & Woven Nest
+            drawFinishingIsland();
+
+            // 7. Tarapirohe Eggs on Bare Gravel Stones
+            for (const egg of eggs) {
+                if (!egg.collected && !egg.saved) {
+                    drawRiverEgg(egg);
+                }
+            }
+
+            // 8. Clickable Map Destination Seal Ring
+            if (player.targetClick && gameState === 'PLAYING') {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(185, 28, 28, 0.85)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.arc(player.targetClick.x, player.targetClick.y, 14, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 9. Ukiyo-e Predators (Feral Cats, Stoats, Hedgehogs, Gulls)
+            for (const pred of predators) {
+                drawPredator(pred);
+            }
+
+            // 10. Player: Tarapirohe (Black-Fronted Tern)
+            drawTarapirohe();
+
+            // 11. Drifting Sakura Cherry Blossom Petals
+            for (const sp of sakuraPetals) {
+                ctx.save();
+                ctx.translate(sp.x, sp.y);
+                ctx.rotate(sp.rot);
+                ctx.fillStyle = 'rgba(251, 207, 232, 0.82)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, sp.size, sp.size * 0.55, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 12. Subtle Washi Woodblock Frame Vignette Border
+            ctx.save();
+            ctx.strokeStyle = 'rgba(28, 25, 23, 0.55)';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(4, 4, width - 8, height - 8);
+            ctx.restore();
+        }
+
+        function drawFinishingIsland() {
+            const { x, y, radius, nestX, nestY } = finishIsland;
+            ctx.save();
+
+            // Vermilion sanctuary ring
+            const pulseR = radius + 12 + Math.sin(performance.now() * 0.004) * 5;
+            ctx.strokeStyle = 'rgba(185, 28, 28, 0.75)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, pulseR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Warm Washi Gold Sanctuary Island
+            const islGrad = ctx.createRadialGradient(x - 15, y - 15, 10, x, y, radius);
+            islGrad.addColorStop(0, '#faf3e4');
+            islGrad.addColorStop(0.65, '#e6d5b8');
+            islGrad.addColorStop(1, '#bfa67a');
+            ctx.fillStyle = islGrad;
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Traditional Vermilion Torii Gate Behind the Nest
+            ctx.save();
+            ctx.translate(x, y - 22);
+            ctx.fillStyle = '#991b1b';
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 1.8;
+            // Pillars
+            ctx.fillRect(-20, -24, 5, 26);
+            ctx.strokeRect(-20, -24, 5, 26);
+            ctx.fillRect(15, -24, 5, 26);
+            ctx.strokeRect(15, -24, 5, 26);
+            // Lower beam (Nuki)
+            ctx.fillRect(-24, -15, 48, 4);
+            ctx.strokeRect(-24, -15, 48, 4);
+            // Top curved lintel (Kasagi)
+            ctx.fillStyle = '#b91c1c';
+            ctx.beginPath();
+            ctx.moveTo(-30, -27);
+            ctx.quadraticCurveTo(0, -23, 30, -27);
+            ctx.lineTo(27, -21);
+            ctx.quadraticCurveTo(0, -18, -27, -21);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // Woven Straw Sanctuary Nest
+            ctx.translate(nestX, nestY + 8);
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath();
+            ctx.ellipse(0, 4, 32, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 2.5;
+            for (let i = 0; i < 10; i++) {
+                const a = (i / 10) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.ellipse(Math.cos(a) * 2, Math.sin(a) * 1.5, 29, 16, a * 0.2, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = '#451a03';
+            ctx.beginPath();
+            ctx.ellipse(0, 3, 20, 11, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Render already saved eggs inside the nest
+            const savedCount = eggs.filter(e => e.saved).length;
+            for (let s = 0; s < savedCount; s++) {
+                ctx.fillStyle = '#fef3c7';
+                ctx.strokeStyle = '#1c1917';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.ellipse(-12 + s * 4.5, 3, 4.5, 6.5, 0.15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Scroll Banner above island
+            ctx.fillStyle = '#faf3e4';
+            ctx.strokeStyle = '#991b1b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(-64, -radius - 32, 128, 20, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#991b1b';
+            ctx.font = 'bold 11px "Shippori Mincho", serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('⛩️ TORII SANCTUARY', 0, -radius - 18);
+            ctx.restore();
+        }
+
+        function drawRiverEgg(egg) {
+            ctx.save();
+            ctx.translate(egg.x, egg.y);
+
+            // Vermilion & gold beacon ring
+            const glow = 16 + Math.sin(egg.pulse) * 4;
+            ctx.strokeStyle = 'rgba(185, 28, 28, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, glow, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Soft ink shadow
+            ctx.fillStyle = 'rgba(28, 25, 23, 0.35)';
+            ctx.beginPath();
+            ctx.ellipse(2, 6, 10, 6, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Washi Cream & Ochre Speckled Egg with Sumi-e Outline
+            const eggGrad = ctx.createRadialGradient(-3, -4, 2, 0, 0, 13);
+            eggGrad.addColorStop(0, '#fffbeb');
+            eggGrad.addColorStop(0.6, '#fde68a');
+            eggGrad.addColorStop(1, '#d97706');
+            ctx.fillStyle = eggGrad;
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 9.5, 12.5, 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Traditional ink speckles
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath();
+            ctx.arc(-3, -3, 1.6, 0, Math.PI * 2);
+            ctx.arc(3, 2, 1.8, 0, Math.PI * 2);
+            ctx.arc(-1, 5, 1.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawPredator(pred) {
+            ctx.save();
+            ctx.translate(pred.x, pred.y);
+
+            // Render Predator's Line-of-Sight Vision Cone
+            const visionRange = pred.type === 'cat' ? 145 : pred.type === 'gull' ? 160 : 120;
+            const facingAngle = Math.atan2(pred.vy, pred.vx);
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, visionRange, facingAngle - 0.6, facingAngle + 0.6);
+            ctx.closePath();
+            const coneGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, visionRange);
+            if (pred.canSeePlayer) {
+                coneGrad.addColorStop(0, 'rgba(185, 28, 28, 0.42)');
+                coneGrad.addColorStop(1, 'rgba(185, 28, 28, 0.04)');
+            } else {
+                coneGrad.addColorStop(0, 'rgba(217, 119, 6, 0.28)');
+                coneGrad.addColorStop(1, 'rgba(217, 119, 6, 0.02)');
+            }
+            ctx.fillStyle = coneGrad;
+            ctx.fill();
+            ctx.restore();
+
+            // Alert exclamation mark when predator spots you
+            if (pred.canSeePlayer) {
+                ctx.fillStyle = '#b91c1c';
+                ctx.strokeStyle = '#faf3e4';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 18px "Shippori Mincho", serif';
+                ctx.textAlign = 'center';
+                ctx.strokeText('!', 0, -pred.radius - 12);
+                ctx.fillText('!', 0, -pred.radius - 12);
+            }
+
+            // Sumi-e water ripple ring
+            ctx.strokeStyle = 'rgba(250, 243, 228, 0.55)';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.arc(0, 4, pred.radius + 5 + Math.sin(pred.animPhase) * 2, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Ink Shadow
+            ctx.fillStyle = 'rgba(28, 25, 23, 0.28)';
+            ctx.beginPath();
+            ctx.ellipse(0, 10, pred.radius * 0.9, pred.radius * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const facingLeft = pred.vx < 0;
+            if (facingLeft) ctx.scale(-1, 1);
+
+            // Bold Sumi-e Woodblock Outlines on all creatures
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 2.2;
+
+            if (pred.type === 'cat') {
+                // Ukiyo-e Bakeneko / Feral Cat
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-12, 2);
+                ctx.quadraticCurveTo(-22, -10 + Math.sin(pred.animPhase) * 4, -18, -17);
+                ctx.stroke();
+
+                ctx.fillStyle = '#c2410c';
+                ctx.beginPath();
+                ctx.ellipse(-2, 4, 14, 11, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#ea580c';
+                ctx.beginPath();
+                ctx.arc(11, -3, 11.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Pointed Ears
+                ctx.fillStyle = '#c2410c';
+                ctx.beginPath();
+                ctx.moveTo(4, -11); ctx.lineTo(6, -21); ctx.lineTo(11, -13);
+                ctx.moveTo(12, -13); ctx.lineTo(17, -21); ctx.lineTo(19, -11);
+                ctx.fill();
+                ctx.stroke();
+
+                // Golden Woodblock Eye
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(14, -4, 2.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath();
+                ctx.ellipse(14, -4, 1, 2.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (pred.type === 'stoat') {
+                // Sumi-e Stoat (Itachi)
+                ctx.fillStyle = '#92400e';
+                ctx.beginPath();
+                ctx.ellipse(-16, 2, 9, 4.5, -0.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath();
+                ctx.arc(-23, 1, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#b45309';
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 16, 9, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#faf3e4';
+                ctx.beginPath();
+                ctx.ellipse(2, 6, 11, 4.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#d97706';
+                ctx.beginPath();
+                ctx.arc(14, -2, 8.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath();
+                ctx.arc(16, -3, 2.2, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (pred.type === 'hedgehog') {
+                // Woodblock Hedgehog (Harinezumi)
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.arc(-2, 2, 15, Math.PI, 0);
+                ctx.lineTo(13, 8);
+                ctx.lineTo(-17, 8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#e7dcc8';
+                ctx.beginPath();
+                ctx.ellipse(10, 3, 8, 6.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath();
+                ctx.arc(17, 3, 2.2, 0, Math.PI * 2);
+                ctx.arc(11, 1, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else {
+                // Woodblock Sea Gull (Kamome)
+                const flap = Math.sin(pred.animPhase * 1.4) * 11;
+                ctx.fillStyle = '#faf3e4';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 15, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#475569';
+                ctx.beginPath();
+                ctx.moveTo(-4, -3);
+                ctx.quadraticCurveTo(2, -20 + flap, 10, -4);
+                ctx.moveTo(-4, 3);
+                ctx.quadraticCurveTo(2, 20 - flap, 10, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#d97706';
+                ctx.beginPath();
+                ctx.moveTo(14, -2);
+                ctx.lineTo(21, 0);
+                ctx.lineTo(14, 3);
+                ctx.fill();
+
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath();
+                ctx.arc(10, -2, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawTarapirohe() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            if (player.invulnTimer > 0 && Math.floor(player.invulnTimer * 12) % 2 === 0) {
+                ctx.globalAlpha = 0.55;
+            }
+
+            // Ink shadow on river below
+            const altitudeOffset = player.landed ? 4 : 18;
+            ctx.fillStyle = 'rgba(28, 25, 23, 0.25)';
+            ctx.beginPath();
+            ctx.ellipse(0, altitudeOffset, 18, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const drawAngle = player.landed ? 0 : Math.sin(player.angle) * 0.25;
+            const flipX = Math.cos(player.angle) < -0.15 ? -1 : 1;
+            ctx.rotate(drawAngle);
+            ctx.scale(flipX, 1);
+
+            const wingSpan = player.landed ? 6 : Math.sin(player.wingPhase) * 19;
+
+            // Far Wing (Sumi-e Washi & Slate Grey)
+            ctx.fillStyle = '#cbd5e1';
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-4, -3);
+            ctx.quadraticCurveTo(-12, -26 + wingSpan, 8, -16 + wingSpan * 0.7);
+            ctx.lineTo(6, -2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Washi White Tern Body with Bold Woodblock Ink Outline
+            ctx.fillStyle = '#faf3e4';
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 21, 11, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Forked Swallowtail Feathers
+            ctx.fillStyle = '#f5ebd6';
+            ctx.beginPath();
+            ctx.moveTo(-17, -3);
+            ctx.lineTo(-29, -8);
+            ctx.lineTo(-22, 0);
+            ctx.lineTo(-29, 8);
+            ctx.lineTo(-17, 3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Signature Black-Fronted Cap
+            ctx.fillStyle = '#1c1917';
+            ctx.beginPath();
+            ctx.arc(13, -3, 9, Math.PI * 0.92, Math.PI * 2.08);
+            ctx.fill();
+
+            // Expressive Woodblock Eye
+            ctx.fillStyle = '#1c1917';
+            ctx.beginPath();
+            ctx.arc(15, 0, 2.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#faf3e4';
+            ctx.beginPath();
+            ctx.arc(15.7, -0.7, 0.9, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Vermilion-Orange Beak
+            ctx.fillStyle = '#ea580c';
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(21, -2);
+            ctx.lineTo(29, 0.5);
+            ctx.lineTo(21, 3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Near Wing
+            ctx.fillStyle = '#faf3e4';
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(-2, 1);
+            ctx.quadraticCurveTo(-13, 26 - wingSpan, 10, 18 - wingSpan * 0.7);
+            ctx.lineTo(8, 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Visual indicator of carried eggs
+            if (player.carryingEggs > 0) {
+                ctx.fillStyle = '#b91c1c';
+                ctx.strokeStyle = '#faf3e4';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.arc(2, 8, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#faf3e4';
+                ctx.font = 'bold 10px "Shippori Mincho", serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(player.carryingEggs, 2, 11.5);
+            }
+
+            ctx.restore();
+        }
+
+        // =========================================================================
+        // 11. MAIN ANIMATION LOOP (Starts on window.onload)
+        // =========================================================================
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            const dt = Math.min(0.05, (timestamp - lastTime) / 1000 || 0.016);
+            lastTime = timestamp;
+
+            if (gameState === 'HOOK' || gameState === 'LOADING') {
+                // Keep braided river scenery alive behind modal screens
+                for (const wp of waterParticles) {
+                    wp.x += wp.speed * dt;
+                    wp.y -= wp.speed * 0.35 * dt;
+                    if (wp.x > width + 50) wp.x = -50;
+                    if (wp.y < -50) wp.y = height + 50;
+                }
+            }
+
+            updateSimulation(dt);
+            renderScene();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            buildStageWorld(1);
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
